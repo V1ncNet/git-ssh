@@ -1,0 +1,44 @@
+name: Scan published image
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Scan for fixable high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: docker.io/vinado/git-ssh:1
+          version: v0.76.0
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  follow-up:
+    if: always()
+    needs: scan
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+
+    steps:
+      - name: Rebuild the latest release with fixed packages
+        if: needs.scan.result == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: gh workflow run deploy.yml --repo "$REPOSITORY"
+      - name: Keep the scheduled scan enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: gh api -X PUT "repos/$REPOSITORY/actions/workflows/scan.yml/enable"

@@ -18,6 +18,21 @@ because the image is meant to sit behind a proxy that hides client addresses. Ra
 
 ## Releases
 
-A tag `v<major>.<minor>.<patch>` builds the image for `linux/arm64` and pushes it to Docker Hub as `vinado/git-ssh`
-with the tags `<major>`, `<major>.<minor>` and `<version>`. A weekly run rebuilds the latest release to pick up
-package updates of Alpine. Every build runs `tests/smoke.sh` first.
+Every push to `main` releases the next patch version. The workflow builds the image for `linux/arm64`, pushes it to
+Docker Hub as `vinado/git-ssh` with the tags `<major>`, `<major>.<minor>` and `<version>` and then tags the commit
+`v<version>`. A merged Dependabot pull request therefore ships without further steps. Changes to this README alone do
+not release. Every build runs `tests/smoke.sh` first.
+
+## Vulnerability scan
+
+A daily run scans `vinado/git-ssh:1` with Trivy for high and critical vulnerabilities that already have a fix. A
+finding fails the run, so GitHub sends a mail, and starts a rebuild of the latest release with the fixed Alpine
+packages. Renovate in the consuming repository then proposes the new digest. Unfixed vulnerabilities do not fail the
+run.
+
+The scan job runs without secrets and with read access only. The Trivy action is pinned to a commit, because its
+version tags were hijacked in March 2026 (CVE-2026-33634). A second job holds `actions: write` to start the rebuild
+and to re-enable the scan workflow on every run, so GitHub does not disable it after 60 days without commits.
+
+Dependabot updates the base image and the actions weekly with a cooldown of seven days against supply chain attacks.
+Security fixes do not wait for it, they arrive through the rebuild above.
