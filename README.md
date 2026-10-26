@@ -1,10 +1,13 @@
 # git-ssh
 
-Container image that serves bare Git repositories over SSH. It runs as the unprivileged user `git` (UID and GID
-`1001`) with a read-only root filesystem. The user keeps a regular Bash, so repositories are created, moved and
-removed with `git init --bare`, `mv` and `rm`.
+A plain SSH server for bare Git repositories, packaged as a container image. It also serves Git LFS over SSH, so large
+files need no separate HTTP endpoint. Repositories are created, moved and removed with `git init --bare`, `mv` and `rm`
+in a regular Bash session.
 
-## Mounts
+## Running
+
+The image runs `sshd` on port `2222` as the unprivileged user `git` (UID and GID `1001`) with a read-only root
+filesystem. It accepts public keys only and allows no forwarding.
 
 | Path | Content |
 |-|-|
@@ -13,28 +16,21 @@ removed with `git init --bare`, `mv` and `rm`.
 | `/home/git` | Repositories, writable by `1001` |
 | `/tmp` | Writable scratch space |
 
-`sshd` listens on port `2222`. It accepts public keys only and allows no forwarding. `PerSourcePenalties` is off,
-because the image is meant to sit behind a proxy that hides client addresses. Rate limiting belongs to that proxy.
+## Using it
+
+Create a repository on the server, then clone and push as with any other remote:
+
+```sh
+ssh -p 2222 git@example.org 'git init --bare project.git'
+git clone ssh://git@example.org:2222/~/project.git
+```
+
+Git LFS works without further setup, given a client with `git-lfs` 3.6 or newer. Run `git lfs install` once and track
+files as usual.
 
 ## Releases
 
-Every push to `main` releases the next patch version. The workflow builds the image for `linux/arm64`, pushes it to
-Docker Hub as `vinado/git-ssh` with the tags `<major>`, `<major>.<minor>` and `<version>` and then tags the commit
-`v<version>`. A merged Dependabot pull request therefore ships without further steps. Changes to this README alone do
-not release, neither do changes to the scan workflow or the Dependabot configuration. Every build runs
-`tests/smoke.sh` first.
+Every merge to `main` builds and publishes the next patch version as `vinado/git-ssh` for `linux/arm64`. A
+`release:minor` or `release:major` label on the pull request raises that part of the version instead.
 
-## Vulnerability scan
-
-A daily run scans `vinado/git-ssh:1` with Trivy for high and critical vulnerabilities that already have a fix. A
-finding fails the run, so GitHub sends a mail, and starts a rebuild of the latest release with the fixed Alpine
-packages. Renovate in the consuming repository then proposes the new digest. Unfixed vulnerabilities do not fail the
-run. A scan error fails the run as well, but starts no rebuild. The image exists for `linux/arm64` only, so the scan
-sets `TRIVY_PLATFORM`.
-
-The scan job runs without secrets and with read access only. The Trivy action is pinned to a commit, because its
-version tags were hijacked in March 2026 (CVE-2026-33634). A second job holds `actions: write` to start the rebuild
-and to re-enable the scan workflow on every run, so GitHub does not disable it after 60 days without commits.
-
-Dependabot updates the base image and the actions weekly with a cooldown of seven days against supply chain attacks.
-Security fixes do not wait for it, they arrive through the rebuild above.
+The published image is scanned for known vulnerabilities and kept up to date automatically.

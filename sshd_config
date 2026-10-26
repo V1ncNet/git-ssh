@@ -11,6 +11,7 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 MaxAuthTries 3
 LoginGraceTime 30
+MaxStartups 20:30:60
 
 AllowTcpForwarding no
 AllowStreamLocalForwarding no
