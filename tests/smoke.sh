@@ -47,13 +47,40 @@ git -C "$work/repo" push -q git@127.0.0.1:vinado/y.git main
 git clone -q git@127.0.0.1:vinado/y.git "$work/clone"
 [ "$(git -C "$work/clone" log --format=%s)" = Smoke ] || { echo "FAIL: push and clone"; exit 1; }
 
+git -C "$work/repo" lfs install --local || { echo "FAIL: LFS install in repo"; exit 1; }
+git -C "$work/repo" lfs track '*.bin' >/dev/null || { echo "FAIL: LFS track"; exit 1; }
+head -c 3145728 /dev/urandom >"$work/repo/big.bin"
+git -C "$work/repo" add .gitattributes big.bin || { echo "FAIL: add LFS file"; exit 1; }
+git -C "$work/repo" -c user.name=Smoke -c user.email=smoke@example.invalid commit -q -m LFS \
+    || { echo "FAIL: commit LFS file"; exit 1; }
+git -C "$work/repo" -c lfs.sshtransfer=always push -q git@127.0.0.1:vinado/y.git main \
+    || { echo "FAIL: LFS push over pure SSH"; exit 1; }
+[ -n "$(remote 'ls vinado/y.git/lfs/objects')" ] || { echo "FAIL: no LFS objects"; exit 1; }
+GIT_LFS_SKIP_SMUDGE=1 git clone -q git@127.0.0.1:vinado/y.git "$work/lfsclone" \
+    || { echo "FAIL: clone for LFS pull"; exit 1; }
+git -C "$work/lfsclone" lfs install --local || { echo "FAIL: LFS install in clone"; exit 1; }
+git -C "$work/lfsclone" -c lfs.sshtransfer=always lfs pull || { echo "FAIL: LFS pull over pure SSH"; exit 1; }
+cmp "$work/repo/big.bin" "$work/lfsclone/big.bin" || { echo "FAIL: LFS content"; exit 1; }
+rm -rf "$work/lfsclone"
+GIT_LFS_SKIP_SMUDGE=1 git clone -q git@127.0.0.1:vinado/y "$work/lfsclone" \
+    || { echo "FAIL: clone without .git suffix"; exit 1; }
+git -C "$work/lfsclone" lfs install --local || { echo "FAIL: LFS install in clone without .git suffix"; exit 1; }
+git -C "$work/lfsclone" -c lfs.sshtransfer=always lfs pull || { echo "FAIL: LFS without .git suffix"; exit 1; }
+cmp "$work/repo/big.bin" "$work/lfsclone/big.bin" || { echo "FAIL: LFS content without .git suffix"; exit 1; }
+rm -rf "$work/lfsclone"
+GIT_LFS_SKIP_SMUDGE=1 git clone -q "ssh://git@127.0.0.1:$port/~/vinado/y.git" "$work/lfsclone" \
+    || { echo "FAIL: clone with ssh URL and home path"; exit 1; }
+git -C "$work/lfsclone" lfs install --local || { echo "FAIL: LFS install in clone with home path"; exit 1; }
+git -C "$work/lfsclone" -c lfs.sshtransfer=always lfs pull || { echo "FAIL: LFS with home path"; exit 1; }
+cmp "$work/repo/big.bin" "$work/lfsclone/big.bin" || { echo "FAIL: LFS content with home path"; exit 1; }
+
 printf 'echo interactive\nexit\n' | remote -tt >/dev/null 2>&1 || true
 remote 'rm -rf vinado'
 [ -z "$(remote 'ls -A')" ] || { echo "FAIL: home not empty: $(remote 'ls -A')"; exit 1; }
 
 effective=$(docker exec "$container" /usr/sbin/sshd -T -f /etc/ssh/sshd_config)
 for setting in "persourcepenalties no" "allowtcpforwarding no" "allowagentforwarding no" "x11forwarding no" \
-    "passwordauthentication no" "permittunnel no"; do
+    "passwordauthentication no" "permittunnel no" "maxstartups 20:30:60"; do
     grep -qx "$setting" <<<"$effective" || { echo "FAIL: $setting"; exit 1; }
 done
 
