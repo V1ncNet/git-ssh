@@ -15,7 +15,7 @@ Guidance for coding agents working in this repository. The README covers what th
 | `tests/smoke.sh` | Starts the image like the pod does and checks the Git and LFS workflow over SSH |
 | `.github/workflows/deploy.yml` | Smoke test, release and push to Docker Hub, zizmor and dependency review on pull requests |
 | `.github/workflows/scan.yml` | Daily Trivy scan of `vinado/git-ssh:1` |
-| `.github/dependabot.yml` | Weekly updates of Docker, Go modules and actions with seven days of cooldown |
+| `.github/dependabot.yml` | Weekly updates of Docker, Go modules and actions with seven days of cooldown, grouped into one pull request per ecosystem, because every merge to `main` releases |
 
 ## Testing locally
 
