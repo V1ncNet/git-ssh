@@ -6,6 +6,9 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      docker:
+        patterns: ["*"]
   - package-ecosystem: gomod
     directory: /tools
     allow:
@@ -14,9 +17,15 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      gomod:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
