@@ -42,11 +42,11 @@ A change to a value in `sshd_config` needs the matching entry in the `sshd -T` a
 ## Why things are as they are
 
 - `git-lfs-transfer.sh` exists because `git-lfs-transfer` does not append `.git` to a repository path the way
-  `git-upload-pack` does. Clients that clone `vinado/y` would otherwise fail on LFS requests. It also resolves a
+  `git-upload-pack` does. Clients that clone `team/y` would otherwise fail on LFS requests. It also resolves a
   leading `~` to `$HOME`, because Git accepts remotes like `ssh://host/~/repo.git` and git-lfs passes that path on
   literally.
-- `MaxStartups 20:30:60` keeps `sshd` from dropping connections at random below the proxy limit. HAProxy admits ten
-  concurrent connections per address and LFS opens several at once.
+- `MaxStartups 20:30:60` keeps `sshd` from dropping connections at random below the proxy limit. A TCP proxy in front
+  limits concurrent connections per address to ten, and LFS opens several at once.
 - `PerSourcePenalties no`, because the image sits behind a proxy that hides client addresses. Rate limiting belongs to
   the proxy.
 - The `lfs` stage runs on `$BUILDPLATFORM` and cross-compiles for `$TARGETARCH`, so CI does not

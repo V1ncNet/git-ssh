@@ -36,15 +36,15 @@ for _ in $(seq 30); do
 done
 
 remote() { ssh "${ssh_opts[@]}" git@127.0.0.1 "$@"; }
-remote 'mkdir -p vinado && git init -q --bare vinado/x.git && mv vinado/x.git vinado/y.git'
-[ "$(remote 'ls vinado')" = y.git ] || { echo "FAIL: create and move"; exit 1; }
-[ "$(remote 'git -C vinado/y.git symbolic-ref HEAD')" = refs/heads/main ] || { echo "FAIL: default branch"; exit 1; }
+remote 'mkdir -p team && git init -q --bare team/x.git && mv team/x.git team/y.git'
+[ "$(remote 'ls team')" = y.git ] || { echo "FAIL: create and move"; exit 1; }
+[ "$(remote 'git -C team/y.git symbolic-ref HEAD')" = refs/heads/main ] || { echo "FAIL: default branch"; exit 1; }
 
 export GIT_SSH_COMMAND="ssh ${ssh_opts[*]}"
 git -c init.defaultBranch=main init -q "$work/repo"
 git -C "$work/repo" -c user.name=Smoke -c user.email=smoke@example.invalid commit -q --allow-empty -m Smoke
-git -C "$work/repo" push -q git@127.0.0.1:vinado/y.git main
-git clone -q git@127.0.0.1:vinado/y.git "$work/clone"
+git -C "$work/repo" push -q git@127.0.0.1:team/y.git main
+git clone -q git@127.0.0.1:team/y.git "$work/clone"
 [ "$(git -C "$work/clone" log --format=%s)" = Smoke ] || { echo "FAIL: push and clone"; exit 1; }
 
 git -C "$work/repo" lfs install --local || { echo "FAIL: LFS install in repo"; exit 1; }
@@ -53,29 +53,29 @@ head -c 3145728 /dev/urandom >"$work/repo/big.bin"
 git -C "$work/repo" add .gitattributes big.bin || { echo "FAIL: add LFS file"; exit 1; }
 git -C "$work/repo" -c user.name=Smoke -c user.email=smoke@example.invalid commit -q -m LFS \
     || { echo "FAIL: commit LFS file"; exit 1; }
-git -C "$work/repo" -c lfs.sshtransfer=always push -q git@127.0.0.1:vinado/y.git main \
+git -C "$work/repo" -c lfs.sshtransfer=always push -q git@127.0.0.1:team/y.git main \
     || { echo "FAIL: LFS push over pure SSH"; exit 1; }
-[ -n "$(remote 'ls vinado/y.git/lfs/objects')" ] || { echo "FAIL: no LFS objects"; exit 1; }
-GIT_LFS_SKIP_SMUDGE=1 git clone -q git@127.0.0.1:vinado/y.git "$work/lfsclone" \
+[ -n "$(remote 'ls team/y.git/lfs/objects')" ] || { echo "FAIL: no LFS objects"; exit 1; }
+GIT_LFS_SKIP_SMUDGE=1 git clone -q git@127.0.0.1:team/y.git "$work/lfsclone" \
     || { echo "FAIL: clone for LFS pull"; exit 1; }
 git -C "$work/lfsclone" lfs install --local || { echo "FAIL: LFS install in clone"; exit 1; }
 git -C "$work/lfsclone" -c lfs.sshtransfer=always lfs pull || { echo "FAIL: LFS pull over pure SSH"; exit 1; }
 cmp "$work/repo/big.bin" "$work/lfsclone/big.bin" || { echo "FAIL: LFS content"; exit 1; }
 rm -rf "$work/lfsclone"
-GIT_LFS_SKIP_SMUDGE=1 git clone -q git@127.0.0.1:vinado/y "$work/lfsclone" \
+GIT_LFS_SKIP_SMUDGE=1 git clone -q git@127.0.0.1:team/y "$work/lfsclone" \
     || { echo "FAIL: clone without .git suffix"; exit 1; }
 git -C "$work/lfsclone" lfs install --local || { echo "FAIL: LFS install in clone without .git suffix"; exit 1; }
 git -C "$work/lfsclone" -c lfs.sshtransfer=always lfs pull || { echo "FAIL: LFS without .git suffix"; exit 1; }
 cmp "$work/repo/big.bin" "$work/lfsclone/big.bin" || { echo "FAIL: LFS content without .git suffix"; exit 1; }
 rm -rf "$work/lfsclone"
-GIT_LFS_SKIP_SMUDGE=1 git clone -q "ssh://git@127.0.0.1:$port/~/vinado/y.git" "$work/lfsclone" \
+GIT_LFS_SKIP_SMUDGE=1 git clone -q "ssh://git@127.0.0.1:$port/~/team/y.git" "$work/lfsclone" \
     || { echo "FAIL: clone with ssh URL and home path"; exit 1; }
 git -C "$work/lfsclone" lfs install --local || { echo "FAIL: LFS install in clone with home path"; exit 1; }
 git -C "$work/lfsclone" -c lfs.sshtransfer=always lfs pull || { echo "FAIL: LFS with home path"; exit 1; }
 cmp "$work/repo/big.bin" "$work/lfsclone/big.bin" || { echo "FAIL: LFS content with home path"; exit 1; }
 
 printf 'echo interactive\nexit\n' | remote -tt >/dev/null 2>&1 || true
-remote 'rm -rf vinado'
+remote 'rm -rf team'
 [ -z "$(remote 'ls -A')" ] || { echo "FAIL: home not empty: $(remote 'ls -A')"; exit 1; }
 
 effective=$(docker exec "$container" /usr/sbin/sshd -T -f /etc/ssh/sshd_config)
