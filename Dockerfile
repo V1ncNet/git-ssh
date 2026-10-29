@@ -8,7 +8,8 @@ RUN CGO_ENABLED=0 GOARCH=$TARGETARCH go build -trimpath -ldflags=-s -o /out/git-
 
 FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
-RUN apk add --no-cache bash git openssh-server \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache bash git openssh-server \
     && addgroup -g 1001 git \
     && adduser -D -u 1001 -G git -h /home/git -s /bin/bash git \
     && sed -i 's/^git:!/git:*/' /etc/shadow

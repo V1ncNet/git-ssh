@@ -50,7 +50,11 @@ A change to a value in `sshd_config` needs the matching entry in the `sshd -T` a
 - `PerSourcePenalties no`, because the image sits behind a proxy that hides client addresses. Rate limiting belongs to
   the proxy.
 - The `lfs` stage runs on `$BUILDPLATFORM` and cross-compiles for `$TARGETARCH`, so CI does not
-  compile Go under QEMU. The final stage still runs `apk add` under QEMU. Modules download in their own layer.
+  compile Go under QEMU. The final stage still runs `apk upgrade` and `apk add` under QEMU. Modules download in their
+  own layer.
+- The final stage runs `apk upgrade` before `apk add`, so a rebuild picks up fixed versions of packages the base image
+  already ships, such as `libcrypto3` and `musl`. The `lfs` stage needs no upgrade, because only the compiled binary
+  leaves it.
 - The `tool` directive keeps `go mod tidy` from removing the dependency, which no Go file imports. Go marks it
   `// indirect`, and Dependabot ignores indirect dependencies by default, so the `gomod` entry sets
   `allow: dependency-type: all`.
