@@ -50,7 +50,11 @@ A change to a value in `sshd_config` needs the matching entry in the `sshd -T` a
 - `PerSourcePenalties no`, because the image sits behind a proxy that hides client addresses. Rate limiting belongs to
   the proxy.
 - The `lfs` stage runs on `$BUILDPLATFORM` and cross-compiles for `$TARGETARCH`, so CI does not
-  compile Go under QEMU. The final stage still runs `apk add` under QEMU. Modules download in their own layer.
+  compile Go under QEMU. The final stage still runs `apk upgrade` and `apk add` under QEMU. Modules download in their
+  own layer.
+- The final stage runs `apk upgrade` before `apk add`, so a rebuild picks up fixed versions of packages the base image
+  already ships, such as `libcrypto3` and `musl`. The `lfs` stage needs no upgrade, because only the compiled binary
+  leaves it.
 - The `tool` directive keeps `go mod tidy` from removing the dependency, which no Go file imports. Go marks it
   `// indirect`, and Dependabot ignores indirect dependencies by default, so the `gomod` entry sets
   `allow: dependency-type: all`.
@@ -66,10 +70,15 @@ A change to a value in `sshd_config` needs the matching entry in the `sshd -T` a
   it yet. An API error fails the step. Without a pull request the release is a patch.
 - The workflow pushes `vinado/git-ssh` with the tags `<major>`, `<major>.<minor>` and `<version>`, then tags the commit
   `v<version>`.
-- `scan.yml` fails on fixable high or critical findings and starts `deploy.yml` by `workflow_dispatch`, which rebuilds
-  the latest tag with fixed Alpine packages. A scan error fails the run without a rebuild. The `follow-up` job
-  re-enables `scan.yml` on every run, so GitHub does not disable it after 60 days without commits. It needs
-  `actions: write` for that.
+- `scan.yml` fails on fixable high or critical findings and sorts them by the Trivy result class. Findings of class
+  `os-pkgs` start `deploy.yml` by `workflow_dispatch`, which rebuilds the latest tag with fixed Alpine packages. Every
+  other finding, such as the Go standard library inside `git-lfs-transfer` (`lang-pkgs`, type `gobinary`), survives a
+  rebuild. The `scan` job opens the issue "Vulnerabilities a rebuild cannot fix" for those, listing CVE, package,
+  installed and fixed version. It needs `issues: write` for that. At most one such issue is open. A later scan updates
+  it and closes it once no finding outside `os-pkgs` remains. A mixed result starts the rebuild and updates the issue.
+  A scan error fails the run without a rebuild and leaves the issue as it is. The `follow-up` job re-enables
+  `scan.yml` on every run, so GitHub does not disable it after 60 days without commits. It needs `actions: write` for
+  that.
 
 ## Conventions
 
