@@ -13,6 +13,6 @@ require (
 	github.com/leonelquinteros/gotext v1.8.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rubyist/tracerx v0.0.0-20170927163412-787959303086 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )
